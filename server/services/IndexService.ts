@@ -42,6 +42,7 @@ import {
   IOpenSearchDashboardsResponse,
   RequestHandlerContext,
 } from "../../../../src/core/server";
+import { getIndexToDataStreamMapping } from "../utils/helpers";
 
 export default class IndexService {
   osDriver: ILegacyCustomClusterClient;
@@ -78,7 +79,10 @@ export default class IndexService {
       const paginatedIndices = indicesResponse.slice(fromNumber, fromNumber + sizeNumber);
       const indexNames = paginatedIndices.map((value: CatIndex) => value.index);
 
-      const managedStatus = await this._getManagedStatus(request, indexNames);
+      const [managedStatus, indexToDataStreamMapping] = await Promise.all([
+        this._getManagedStatus(request, indexNames),
+        getIndexToDataStreamMapping(this.osDriver.asScoped(request)),
+      ]);
 
       // NOTE: Cannot use response.ok due to typescript type checking
       return response.custom({
@@ -86,7 +90,11 @@ export default class IndexService {
         body: {
           ok: true,
           response: {
-            indices: paginatedIndices.map((catIndex: CatIndex) => ({ ...catIndex, managed: managedStatus[catIndex.index] || "N/A" })),
+            indices: paginatedIndices.map((catIndex: CatIndex) => ({
+              ...catIndex,
+              managed: managedStatus[catIndex.index] || "N/A",
+              data_stream: indexToDataStreamMapping[catIndex.index] || null,
+            })),
             totalIndices: indicesResponse.length,
           },
         },

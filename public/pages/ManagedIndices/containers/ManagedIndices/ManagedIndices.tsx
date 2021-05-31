@@ -113,6 +113,15 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
         render: (index: string) => <span title={index}>{index}</span>,
       },
       {
+        field: "dataStream",
+        name: "Data Stream",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        width: "120px",
+        render: (dataStream) => dataStream || "–",
+      },
+      {
         field: "policyId",
         name: "Policy",
         sortable: true,

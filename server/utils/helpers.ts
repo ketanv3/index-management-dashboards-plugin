@@ -24,9 +24,10 @@
  * permissions and limitations under the License.
  */
 
-import { ExplainAPIManagedIndexMetaData, QueryStringQuery } from "../models/interfaces";
+import { DataStream, ExplainAPIManagedIndexMetaData, QueryStringQuery } from "../models/interfaces";
 import { MatchAllQuery } from "../models/types";
 import { ManagedIndexMetaData } from "../../models/interfaces";
+import { ILegacyScopedClusterClient } from "opensearch-dashboards/server";
 
 export function transformManagedIndexMetaData(metaData: ExplainAPIManagedIndexMetaData | undefined): ManagedIndexMetaData | null {
   if (!metaData) return null;
@@ -73,4 +74,23 @@ export function getMustQuery<T extends string>(field: T, search: string): MatchA
   }
 
   return { match_all: {} };
+}
+
+export async function getIndexToDataStreamMapping({
+  callAsCurrentUser: callWithRequest,
+}: ILegacyScopedClusterClient): Promise<{ [indexName: string]: string }> {
+  const dataStreamsResponse = await callWithRequest("transport.request", {
+    path: "/_data_stream",
+    method: "GET",
+  });
+  const dataStreams: DataStream[] = dataStreamsResponse["data_streams"];
+
+  const mapping: { [indexName: string]: string } = {};
+  dataStreams.forEach((dataStream) => {
+    dataStream.indices.forEach((index) => {
+      mapping[index.index_name] = dataStream.name;
+    });
+  });
+
+  return mapping;
 }

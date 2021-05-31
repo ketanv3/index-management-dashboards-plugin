@@ -49,6 +49,7 @@ import {
 } from "../models/interfaces";
 import { ManagedIndicesSort, ServerResponse } from "../models/types";
 import { ManagedIndexItem } from "../../models/interfaces";
+import { getIndexToDataStreamMapping } from "../utils/helpers";
 
 export default class ManagedIndexService {
   osDriver: ILegacyCustomClusterClient;
@@ -110,8 +111,12 @@ export default class ManagedIndexService {
         queryString: search ? `*${search.split(" ").join("* *")}*` : null,
       };
 
-      const { callAsCurrentUser: callWithRequest } = this.osDriver.asScoped(request);
-      const explainAllResponse: ExplainAllResponse = await callWithRequest("ism.explainAll", explainParams);
+      const client = this.osDriver.asScoped(request);
+      const { callAsCurrentUser: callWithRequest } = client;
+      const [explainAllResponse, indexToDataStreamMapping] = await Promise.all([
+        callWithRequest("ism.explainAll", explainParams) as Promise<ExplainAllResponse>,
+        getIndexToDataStreamMapping(client),
+      ]);
 
       const managedIndices: ManagedIndexItem[] = [];
       for (const indexName in explainAllResponse) {
@@ -133,6 +138,7 @@ export default class ManagedIndexService {
         managedIndices.push({
           index: metadata.index,
           indexUuid: metadata.index_uuid,
+          dataStream: indexToDataStreamMapping[metadata.index] || null,
           policyId: metadata.policy_id,
           policySeqNo: seqNo,
           policyPrimaryTerm: primaryTerm,

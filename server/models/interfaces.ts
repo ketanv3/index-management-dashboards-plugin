@@ -278,6 +278,7 @@ export interface CatIndex {
   "docs.deleted": string;
   health: string;
   index: string;
+  data_stream: string | null;
   pri: string;
   "pri.store.size": string;
   rep: string;
@@ -288,4 +289,22 @@ export interface CatIndex {
 
 export interface ManagedCatIndex extends CatIndex {
   managed: string;
+}
+
+export interface DataStream {
+  name: string;
+  timestamp_field: DataStreamTimestampField;
+  indices: DataStreamIndex[];
+  generation: number;
+  status: string;
+  template?: string;
+}
+
+export interface DataStreamTimestampField {
+  name: string;
+}
+
+export interface DataStreamIndex {
+  index_name: string;
+  index_uuid: string;
 }
