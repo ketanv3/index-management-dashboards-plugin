@@ -79,11 +79,7 @@ export function getMustQuery<T extends string>(field: T, search: string): MatchA
 export async function getIndexToDataStreamMapping({
   callAsCurrentUser: callWithRequest,
 }: ILegacyScopedClusterClient): Promise<{ [indexName: string]: string }> {
-  const dataStreamsResponse = await callWithRequest("transport.request", {
-    path: "/_data_stream",
-    method: "GET",
-  });
-  const dataStreams: DataStream[] = dataStreamsResponse["data_streams"];
+  const dataStreams: DataStream[] = await getDataStreams({ callAsCurrentUser: callWithRequest });
 
   const mapping: { [indexName: string]: string } = {};
   dataStreams.forEach((dataStream) => {
@@ -93,4 +89,13 @@ export async function getIndexToDataStreamMapping({
   });
 
   return mapping;
+}
+
+export async function getDataStreams({ callAsCurrentUser: callWithRequest }: ILegacyScopedClusterClient): Promise<DataStream[]> {
+  const dataStreamsResponse = await callWithRequest("transport.request", {
+    path: "/_data_stream",
+    method: "GET",
+  });
+
+  return dataStreamsResponse["data_streams"];
 }

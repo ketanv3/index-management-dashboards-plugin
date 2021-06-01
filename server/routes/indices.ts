@@ -52,9 +52,9 @@ export default function (services: NodeServices, router: IRouter) {
           search: schema.string(),
           sortField: schema.string(),
           sortDirection: schema.string(),
-          terms: schema.maybe(schema.oneOf([schema.string(), schema.arrayOf(schema.string())])),
-          indices: schema.maybe(schema.oneOf([schema.string(), schema.arrayOf(schema.string())])),
-          dataStreams: schema.maybe(schema.oneOf([schema.string(), schema.arrayOf(schema.string())])),
+          terms: schema.maybe(schema.any()),
+          indices: schema.maybe(schema.any()),
+          dataStreams: schema.maybe(schema.any()),
         }),
       },
     },
@@ -79,5 +79,13 @@ export default function (services: NodeServices, router: IRouter) {
       },
     },
     indexService.editRolloverAlias
+  );
+
+  router.get(
+    {
+      path: NODE_API._DATA_STREAMS,
+      validate: {},
+    },
+    indexService.getDataStreams
   );
 }

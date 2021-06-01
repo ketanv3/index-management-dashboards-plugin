@@ -49,7 +49,7 @@ import IndexEmptyPrompt from "../../components/IndexEmptyPrompt";
 import { DEFAULT_PAGE_SIZE_OPTIONS, DEFAULT_QUERY_PARAMS, indicesColumns } from "../../utils/constants";
 import { ModalConsumer } from "../../../../components/Modal";
 import IndexService from "../../../../services/IndexService";
-import { ManagedCatIndex } from "../../../../../server/models/interfaces";
+import { DataStream, GetDataStreamsResponse, ManagedCatIndex } from "../../../../../server/models/interfaces";
 import { getURLQueryParams } from "../../utils/helpers";
 import { IndicesQueryParams } from "../../models/interfaces";
 import { BREADCRUMBS } from "../../../../utils/constants";
@@ -136,6 +136,13 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       this.context.notifications.toasts.addDanger(getErrorMessage(err, "There was a problem loading the indices"));
     }
     this.setState({ loadingIndices: false });
+  };
+
+  getDataStreams = async (): Promise<DataStream[]> => {
+    const { indexService } = this.props;
+    const serverResponse = await indexService.getDataStreams();
+    const { dataStreams } = serverResponse.response;
+    return dataStreams;
   };
 
   getFieldClausesFromState = (clause: string): string[] => {
@@ -231,6 +238,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
           onSearchChange={this.onSearchChange}
           onPageClick={this.onPageClick}
           onRefresh={this.getIndices}
+          getDataStreams={this.getDataStreams}
         />
 
         <EuiHorizontalRule margin="xs" />

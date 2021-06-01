@@ -33,6 +33,7 @@ import {
   GetIndicesResponse,
   ExplainResponse,
   ExplainAPIManagedIndexMetaData,
+  GetDataStreamsResponse,
 } from "../models/interfaces";
 import { ServerResponse } from "../models/types";
 import {
@@ -42,7 +43,7 @@ import {
   IOpenSearchDashboardsResponse,
   RequestHandlerContext,
 } from "../../../../src/core/server";
-import { getIndexToDataStreamMapping } from "../utils/helpers";
+import { getDataStreams, getIndexToDataStreamMapping } from "../utils/helpers";
 
 export default class IndexService {
   osDriver: ILegacyCustomClusterClient;
@@ -96,7 +97,7 @@ export default class IndexService {
 
       const [managedStatus, indexToDataStreamMapping] = await Promise.all([
         this._getManagedStatus(request, indexNames),
-        getIndexToDataStreamMapping(this.osDriver.asScoped(request)),
+        getIndexToDataStreamMapping({ callAsCurrentUser: callWithRequest }),
       ]);
 
       // NOTE: Cannot use response.ok due to typescript type checking
@@ -137,6 +138,26 @@ export default class IndexService {
         },
       });
     }
+  };
+
+  getDataStreams = async (
+    context: RequestHandlerContext,
+    request: OpenSearchDashboardsRequest,
+    response: OpenSearchDashboardsResponseFactory
+  ): Promise<IOpenSearchDashboardsResponse<ServerResponse<GetDataStreamsResponse>>> => {
+    const { callAsCurrentUser: callWithRequest } = this.osDriver.asScoped(request);
+    const dataStreams = await getDataStreams({ callAsCurrentUser: callWithRequest });
+
+    return response.custom({
+      statusCode: 200,
+      body: {
+        ok: true,
+        response: {
+          dataStreams: dataStreams,
+          totalDataStreams: dataStreams.length,
+        },
+      },
+    });
   };
 
   _getManagedStatus = async (request: OpenSearchDashboardsRequest, indexNames: string[]): Promise<{ [indexName: string]: string }> => {

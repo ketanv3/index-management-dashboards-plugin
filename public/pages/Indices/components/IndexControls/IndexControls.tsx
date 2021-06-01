@@ -27,6 +27,7 @@
 import React, { Component } from "react";
 import { EuiFlexGroup, EuiFlexItem, EuiPagination, EuiSearchBar, ArgsWithError, ArgsWithQuery } from "@elastic/eui";
 import EuiRefreshPicker from "../../../../temporary/EuiRefreshPicker";
+import { DataStream } from "../../../../../server/models/interfaces";
 
 interface IndexControlsProps {
   activePage: number;
@@ -35,48 +36,13 @@ interface IndexControlsProps {
   onSearchChange: (args: ArgsWithQuery | ArgsWithError) => void;
   onPageClick: (page: number) => void;
   onRefresh: () => Promise<void>;
+  getDataStreams: () => Promise<DataStream[]>;
 }
 
 interface IndexControlsState {
   refreshInterval: number;
   isPaused: boolean;
 }
-
-const schema = {
-  strict: true,
-  fields: {
-    indices: {
-      type: "string",
-    },
-    data_streams: {
-      type: "string",
-    },
-  },
-};
-
-const filters = [
-  {
-    type: "field_value_selection",
-    field: "data_streams",
-    name: "Data Streams",
-    multiSelect: "or",
-    // cache: 10000, // will cache the loaded tags for 10 sec
-    options: [
-      {
-        value: "logs-redis",
-      },
-      {
-        value: "logs-nginx",
-      },
-      {
-        value: "logs-haproxy",
-      },
-      {
-        value: "pollution",
-      },
-    ],
-  },
-];
 
 export default class IndexControls extends Component<IndexControlsProps, IndexControlsState> {
   state: IndexControlsState = {
@@ -88,9 +54,37 @@ export default class IndexControls extends Component<IndexControlsProps, IndexCo
     this.setState({ isPaused, refreshInterval });
   };
 
+  lazyLoadDataStreams = async () => {
+    return (await this.props.getDataStreams()).map((ds) => ({ value: ds.name }));
+  };
+
   render() {
     const { activePage, pageCount, search, onSearchChange, onPageClick, onRefresh } = this.props;
     const { refreshInterval, isPaused } = this.state;
+
+    const schema = {
+      strict: true,
+      fields: {
+        indices: {
+          type: "string",
+        },
+        data_streams: {
+          type: "string",
+        },
+      },
+    };
+
+    const filters = [
+      {
+        type: "field_value_selection",
+        field: "data_streams",
+        name: "Data Streams",
+        multiSelect: "or",
+        cache: 60000,
+        options: () => this.lazyLoadDataStreams(),
+      },
+    ];
+
     return (
       <EuiFlexGroup style={{ padding: "0px 5px" }}>
         <EuiFlexItem>
