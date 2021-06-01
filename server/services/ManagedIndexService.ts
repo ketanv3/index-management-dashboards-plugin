@@ -34,7 +34,7 @@ import {
   ILegacyCustomClusterClient,
 } from "opensearch-dashboards/server";
 import { INDEX } from "../utils/constants";
-import { transformManagedIndexMetaData } from "../utils/helpers";
+import { getSearchString, transformManagedIndexMetaData } from "../utils/helpers";
 import {
   ChangePolicyResponse,
   ExplainAllResponse,
@@ -94,21 +94,24 @@ export default class ManagedIndexService {
     response: OpenSearchDashboardsResponseFactory
   ): Promise<IOpenSearchDashboardsResponse<ServerResponse<GetManagedIndicesResponse>>> => {
     try {
-      const { from, size, search, sortDirection, sortField } = request.query as {
+      const { from, size, sortDirection, sortField, terms, indices, dataStreams } = request.query as {
         from: string;
         size: string;
-        search: string;
         sortDirection: string;
         sortField: string;
+        terms?: string[];
+        indices?: string[];
+        dataStreams?: string[];
       };
 
+      const searchString = getSearchString(terms, indices, dataStreams);
       const managedIndexSorts: ManagedIndicesSort = { index: "managed_index.index", policyId: "managed_index.policy_id" };
       const explainParams = {
         size,
         from,
         sortField: sortField ? managedIndexSorts[sortField] : null,
         sortOrder: sortDirection,
-        queryString: search ? `*${search.split(" ").join("* *")}*` : null,
+        queryString: searchString,
       };
 
       const client = this.osDriver.asScoped(request);

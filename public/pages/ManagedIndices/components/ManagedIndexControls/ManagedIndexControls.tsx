@@ -25,16 +25,18 @@
  */
 
 import React, { ChangeEvent, Component } from "react";
-import { EuiFieldSearch, EuiFlexGroup, EuiFlexItem, EuiPagination } from "@elastic/eui";
+import { EuiSearchBar, EuiFlexGroup, EuiFlexItem, EuiPagination, ArgsWithQuery, ArgsWithError } from "@elastic/eui";
 import EuiRefreshPicker from "../../../../temporary/EuiRefreshPicker";
+import { DataStream } from "../../../../../server/models/interfaces";
 
 interface ManagedIndexControlsProps {
   activePage: number;
   pageCount: number;
   search: string;
-  onSearchChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onSearchChange: (args: ArgsWithQuery | ArgsWithError) => void;
   onPageClick: (page: number) => void;
   onRefresh: () => void;
+  getDataStreams: () => Promise<DataStream[]>;
 }
 
 export default class ManagedIndexControls extends Component<ManagedIndexControlsProps, object> {
@@ -47,14 +49,46 @@ export default class ManagedIndexControls extends Component<ManagedIndexControls
     this.setState({ isPaused, refreshInterval });
   };
 
+  lazyLoadDataStreams = async () => {
+    return (await this.props.getDataStreams()).map((ds) => ({ value: ds.name }));
+  };
+
   render() {
     const { activePage, pageCount, search, onSearchChange, onPageClick, onRefresh } = this.props;
     const { refreshInterval, isPaused } = this.state;
 
+    const schema = {
+      strict: true,
+      fields: {
+        indices: {
+          type: "string",
+        },
+        data_streams: {
+          type: "string",
+        },
+      },
+    };
+
+    const filters = [
+      {
+        type: "field_value_selection",
+        field: "data_streams",
+        name: "Data Streams",
+        multiSelect: false,
+        cache: 60000,
+        options: () => this.lazyLoadDataStreams(),
+      },
+    ];
+
     return (
       <EuiFlexGroup style={{ padding: "0px 5px" }}>
         <EuiFlexItem>
-          <EuiFieldSearch fullWidth={true} value={search} placeholder="Search" onChange={onSearchChange} />
+          <EuiSearchBar
+            query={search}
+            box={{ placeholder: "Search", schema, incremental: true }}
+            onChange={onSearchChange}
+            filters={filters}
+          />
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ maxWidth: 250 }}>
           <EuiRefreshPicker

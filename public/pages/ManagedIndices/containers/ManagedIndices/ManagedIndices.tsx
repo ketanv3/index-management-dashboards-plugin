@@ -43,6 +43,9 @@ import {
   // @ts-ignore
   Pagination,
   EuiTableSelectionType,
+  ArgsWithQuery,
+  ArgsWithError,
+  Query,
 } from "@elastic/eui";
 import queryString from "query-string";
 import _ from "lodash";
@@ -62,6 +65,7 @@ import ConfirmationModal from "../../../../components/ConfirmationModal";
 import RetryModal from "../../components/RetryModal";
 import RolloverAliasModal from "../../components/RolloverAliasModal";
 import { CoreServicesContext } from "../../../../components/core_services";
+import { DataStream } from "../../../../../server/models/interfaces";
 
 interface ManagedIndicesProps extends RouteComponentProps {
   managedIndexService: ManagedIndexService;
@@ -72,6 +76,7 @@ interface ManagedIndicesState {
   from: number;
   size: number;
   search: string;
+  query: Query;
   sortField: keyof ManagedIndexItem;
   sortDirection: Direction;
   selectedItems: ManagedIndexItem[];
@@ -93,6 +98,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       from,
       size,
       search,
+      query: Query.parse(""),
       sortField,
       sortDirection,
       selectedItems: [],
@@ -231,7 +237,14 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       const queryObject = ManagedIndices.getQueryObjectFromState(this.state);
       const queryParamsString = queryString.stringify(queryObject);
       history.replace({ ...this.props.location, search: queryParamsString });
-      const getManagedIndicesResponse = await managedIndexService.getManagedIndices(queryObject);
+
+      const getManagedIndicesResponse = await managedIndexService.getManagedIndices({
+        ...queryObject,
+        terms: this.getTermClausesFromState(),
+        indices: this.getFieldClausesFromState("indices"),
+        dataStreams: this.getFieldClausesFromState("data_streams"),
+      });
+
       if (getManagedIndicesResponse.ok) {
         const {
           response: { managedIndices, totalManagedIndices },
@@ -244,6 +257,23 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       this.context.notifications.toasts.addDanger(getErrorMessage(err, "There was a problem loading the managed indices"));
     }
     this.setState({ loadingManagedIndices: false });
+  };
+
+  getDataStreams = async (): Promise<DataStream[]> => {
+    const { managedIndexService } = this.props;
+    const serverResponse = await managedIndexService.getDataStreams();
+    const { dataStreams } = serverResponse.response;
+    return dataStreams;
+  };
+
+  getFieldClausesFromState = (clause: string): string[] => {
+    const { query } = this.state;
+    return (query.ast.getFieldClauses(clause) || []).map((field) => field.value).flat();
+  };
+
+  getTermClausesFromState = (): string[] => {
+    const { query } = this.state;
+    return (query.ast.getTermClauses() || []).map((term) => term.value);
   };
 
   onClickRemovePolicy = async (indices: string[]): Promise<void> => {
@@ -281,8 +311,12 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
     this.setState({ selectedItems });
   };
 
-  onSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    this.setState({ from: 0, search: e.target.value });
+  onSearchChange = ({ query, queryText, error }: ArgsWithQuery | ArgsWithError): void => {
+    if (error) {
+      return;
+    }
+
+    this.setState({ from: 0, search: queryText, query });
   };
 
   onPageClick = (page: number): void => {
@@ -297,7 +331,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
   };
 
   resetFilters = (): void => {
-    this.setState({ search: DEFAULT_QUERY_PARAMS.search });
+    this.setState({ search: DEFAULT_QUERY_PARAMS.search, query: Query.parse(DEFAULT_QUERY_PARAMS.search) });
   };
 
   render() {
@@ -408,6 +442,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
             onSearchChange={this.onSearchChange}
             onPageClick={this.onPageClick}
             onRefresh={this.getManagedIndices}
+            getDataStreams={this.getDataStreams}
           />
 
           <EuiHorizontalRule margin="xs" />
