@@ -376,10 +376,13 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
         return !(retryInfo && retryInfo.failed) && !(action && action.failed);
       });
 
+    // Editing the rollover alias for a data stream shouldn't be allowed.
+    const isDataStreamIndexSelected = selectedItems.some((item) => item.dataStream !== null);
+
     const actions = [
       {
         text: "Edit rollover alias",
-        buttonProps: { disabled: selectedItems.length !== 1 },
+        buttonProps: { disabled: selectedItems.length !== 1 || isDataStreamIndexSelected },
         modal: {
           onClickModal: (onShow: (component: any, props: object) => void) => () =>
             onShow(RolloverAliasModal, {
