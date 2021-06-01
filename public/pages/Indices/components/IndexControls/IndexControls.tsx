@@ -25,14 +25,14 @@
  */
 
 import React, { Component } from "react";
-import { EuiFieldSearch, EuiFlexGroup, EuiFlexItem, EuiPagination } from "@elastic/eui";
+import { EuiFlexGroup, EuiFlexItem, EuiPagination, EuiSearchBar, ArgsWithError, ArgsWithQuery } from "@elastic/eui";
 import EuiRefreshPicker from "../../../../temporary/EuiRefreshPicker";
 
 interface IndexControlsProps {
   activePage: number;
   pageCount: number;
   search: string;
-  onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSearchChange: (args: ArgsWithQuery | ArgsWithError) => void;
   onPageClick: (page: number) => void;
   onRefresh: () => Promise<void>;
 }
@@ -41,6 +41,42 @@ interface IndexControlsState {
   refreshInterval: number;
   isPaused: boolean;
 }
+
+const schema = {
+  strict: true,
+  fields: {
+    indices: {
+      type: "string",
+    },
+    data_streams: {
+      type: "string",
+    },
+  },
+};
+
+const filters = [
+  {
+    type: "field_value_selection",
+    field: "data_streams",
+    name: "Data Streams",
+    multiSelect: "or",
+    // cache: 10000, // will cache the loaded tags for 10 sec
+    options: [
+      {
+        value: "logs-redis",
+      },
+      {
+        value: "logs-nginx",
+      },
+      {
+        value: "logs-haproxy",
+      },
+      {
+        value: "pollution",
+      },
+    ],
+  },
+];
 
 export default class IndexControls extends Component<IndexControlsProps, IndexControlsState> {
   state: IndexControlsState = {
@@ -58,7 +94,12 @@ export default class IndexControls extends Component<IndexControlsProps, IndexCo
     return (
       <EuiFlexGroup style={{ padding: "0px 5px" }}>
         <EuiFlexItem>
-          <EuiFieldSearch fullWidth={true} value={search} placeholder="Search" onChange={onSearchChange} />
+          <EuiSearchBar
+            query={search}
+            box={{ placeholder: "Search", schema, incremental: true }}
+            onChange={onSearchChange}
+            filters={filters}
+          />
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ maxWidth: 250 }}>
           <EuiRefreshPicker

@@ -38,6 +38,9 @@ import {
   // @ts-ignore
   Pagination,
   EuiTableSelectionType,
+  ArgsWithError,
+  ArgsWithQuery,
+  Query,
 } from "@elastic/eui";
 import { ContentPanel, ContentPanelActions } from "../../../../components/ContentPanel";
 import IndexControls from "../../components/IndexControls";
@@ -62,6 +65,7 @@ interface IndicesState {
   from: number;
   size: number;
   search: string;
+  query: Query;
   sortField: keyof ManagedCatIndex;
   sortDirection: Direction;
   selectedItems: ManagedCatIndex[];
@@ -79,6 +83,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       from,
       size,
       search,
+      query: Query.parse(search),
       sortField,
       sortDirection,
       selectedItems: [],
@@ -113,7 +118,14 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       const queryObject = Indices.getQueryObjectFromState(this.state);
       const queryParamsString = queryString.stringify(queryObject);
       history.replace({ ...this.props.location, search: queryParamsString });
-      const getIndicesResponse = await indexService.getIndices(queryObject);
+
+      const getIndicesResponse = await indexService.getIndices({
+        ...queryObject,
+        terms: this.getTermClausesFromState(),
+        indices: this.getFieldClausesFromState("indices"),
+        dataStreams: this.getFieldClausesFromState("data_streams"),
+      });
+
       if (getIndicesResponse.ok) {
         const { indices, totalIndices } = getIndicesResponse.response;
         this.setState({ indices, totalIndices });
@@ -126,6 +138,16 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
     this.setState({ loadingIndices: false });
   };
 
+  getFieldClausesFromState = (clause: string): string[] => {
+    const { query } = this.state;
+    return (query.ast.getFieldClauses(clause) || []).map((field) => field.value).flat();
+  };
+
+  getTermClausesFromState = (): string[] => {
+    const { query } = this.state;
+    return (query.ast.getTermClauses() || []).map((term) => term.value);
+  };
+
   onTableChange = ({ page: tablePage, sort }: Criteria<ManagedCatIndex>): void => {
     const { index: page, size } = tablePage;
     const { field: sortField, direction: sortDirection } = sort;
@@ -136,8 +158,12 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
     this.setState({ selectedItems });
   };
 
-  onSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    this.setState({ from: 0, search: e.target.value });
+  onSearchChange = ({ query, queryText, error }: ArgsWithError | ArgsWithQuery): void => {
+    if (error) {
+      return;
+    }
+
+    this.setState({ from: 0, search: queryText, query });
   };
 
   onPageClick = (page: number): void => {
@@ -146,7 +172,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
   };
 
   resetFilters = (): void => {
-    this.setState({ search: DEFAULT_QUERY_PARAMS.search });
+    this.setState({ search: DEFAULT_QUERY_PARAMS.search, query: Query.parse(DEFAULT_QUERY_PARAMS.search) });
   };
 
   render() {

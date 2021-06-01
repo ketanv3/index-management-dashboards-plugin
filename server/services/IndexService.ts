@@ -58,17 +58,32 @@ export default class IndexService {
   ): Promise<IOpenSearchDashboardsResponse<ServerResponse<GetIndicesResponse>>> => {
     try {
       // @ts-ignore
-      const { from, size, search, sortField, sortDirection } = request.query as {
+      const { from, size, sortField, sortDirection, terms, indices, dataStreams } = request.query as {
         from: string;
         size: string;
-        search: string;
         sortField: string;
         sortDirection: string;
+        terms?: string[];
+        indices?: string[];
+        dataStreams?: string[];
       };
+
+      // Terms are searched with a wildcard around them.
+      const searchTerms = terms ? `*${[terms].flat().join("*,*")}*` : "";
+
+      // Indices and data streams are searched with an exact match.
+      const searchIndices = indices ? [indices].flat().join(",") : "";
+      const searchDataStreams = dataStreams ? [dataStreams].flat().join(",") : "";
+
+      // The overall search string is a combination of terms, indices, and data streams.
+      // If the search string is blank, then '*' is used to match everything.
+      const searchString = [searchTerms, searchIndices, searchDataStreams].filter((value) => value !== "").join(",") || "*";
+
       const params = {
-        index: `*${search.trim().split(" ").join("* *")}*`,
+        index: searchString,
         format: "json",
         s: `${sortField}:${sortDirection}`,
+        expand_wildcards: "all",
       };
       const { callAsCurrentUser: callWithRequest } = this.osDriver.asScoped(request);
       const indicesResponse: CatIndex[] = await callWithRequest("cat.indices", params);
