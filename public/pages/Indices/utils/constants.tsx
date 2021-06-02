@@ -37,6 +37,7 @@ export const DEFAULT_QUERY_PARAMS = {
   search: "",
   sortField: "name",
   sortDirection: SortDirection.DESC,
+  showDataStreams: true,
 };
 
 const HEALTH_TO_COLOR: {
@@ -50,115 +51,131 @@ const HEALTH_TO_COLOR: {
   red: "danger",
 };
 
-export const indicesColumns: EuiTableFieldDataColumnType<ManagedCatIndex>[] = [
-  {
-    field: "index",
-    name: "Index",
-    sortable: true,
-    truncateText: false,
-    textOnly: true,
-    width: "250px",
-    render: (index: string) => {
-      return (
-        <EuiCopy textToCopy={index}>
-          {(copy) => (
-            <div>
-              <EuiButtonEmpty size="xs" flush="right" iconType="copyClipboard" onClick={copy} color="text"></EuiButtonEmpty>
-              <span title={index}>{index}</span>
-            </div>
-          )}
-        </EuiCopy>
-      );
-    },
-  },
-  {
-    field: "health",
-    name: "Health",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    align: "right",
-    render: (health: string, item: ManagedCatIndex) => {
-      const color = health ? HEALTH_TO_COLOR[health] : "subdued";
-      const text = health || item.status;
-      return <EuiHealth color={color}>{text}</EuiHealth>;
-    },
-  },
-  {
-    field: "data_stream",
-    name: "Data Stream",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    align: "right",
-    width: "120px",
-    render: (data_stream) => data_stream || "–",
-  },
-  {
-    field: "managed",
-    name: "Managed by Policy",
-    sortable: false,
-    truncateText: true,
-    textOnly: true,
-    align: "right",
-    width: "140px",
-  },
-  {
-    field: "status",
-    name: "Status",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    align: "right",
-  },
-  {
-    field: "store.size",
-    name: "Total size",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-  },
-  {
-    field: "pri.store.size",
-    name: "Primaries size",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-  },
-  {
-    field: "docs.count",
-    name: "Total documents",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-    render: (count: string) => <span title={count}>{count}</span>,
-  },
-  {
-    field: "docs.deleted",
-    name: "Deleted documents",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-    render: (deleted: string) => <span title={deleted}>{deleted}</span>,
-  },
-  {
-    field: "pri",
-    name: "Primaries",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-  },
-  {
-    field: "rep",
-    name: "Replicas",
-    sortable: true,
-    truncateText: true,
-    textOnly: true,
-    dataType: "number",
-  },
-];
+export const indicesColumns = (showDataStreams: boolean): EuiTableFieldDataColumnType<ManagedCatIndex>[] => {
+  const columns = [];
+
+  columns.push(
+    ...[
+      {
+        field: "index",
+        name: "Index",
+        sortable: true,
+        truncateText: false,
+        textOnly: true,
+        width: "250px",
+        render: (index: string) => {
+          return (
+            <EuiCopy textToCopy={index}>
+              {(copy) => (
+                <div>
+                  <EuiButtonEmpty size="xs" flush="right" iconType="copyClipboard" onClick={copy} color="text"></EuiButtonEmpty>
+                  <span title={index}>{index}</span>
+                </div>
+              )}
+            </EuiCopy>
+          );
+        },
+      },
+      {
+        field: "health",
+        name: "Health",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        align: "right",
+        render: (health: string, item: ManagedCatIndex) => {
+          const color = health ? HEALTH_TO_COLOR[health] : "subdued";
+          const text = health || item.status;
+          return <EuiHealth color={color}>{text}</EuiHealth>;
+        },
+      },
+    ]
+  );
+
+  if (showDataStreams) {
+    columns.push({
+      field: "data_stream",
+      name: "Data Stream",
+      sortable: true,
+      truncateText: true,
+      textOnly: true,
+      align: "right",
+      width: "120px",
+      render: (data_stream) => data_stream || "–",
+    });
+  }
+
+  columns.push(
+    ...[
+      {
+        field: "managed",
+        name: "Managed by Policy",
+        sortable: false,
+        truncateText: true,
+        textOnly: true,
+        align: "right",
+        width: "140px",
+      },
+      {
+        field: "status",
+        name: "Status",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        align: "right",
+      },
+      {
+        field: "store.size",
+        name: "Total size",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+      },
+      {
+        field: "pri.store.size",
+        name: "Primaries size",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+      },
+      {
+        field: "docs.count",
+        name: "Total documents",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+        render: (count: string) => <span title={count}>{count}</span>,
+      },
+      {
+        field: "docs.deleted",
+        name: "Deleted documents",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+        render: (deleted: string) => <span title={deleted}>{deleted}</span>,
+      },
+      {
+        field: "pri",
+        name: "Primaries",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+      },
+      {
+        field: "rep",
+        name: "Replicas",
+        sortable: true,
+        truncateText: true,
+        textOnly: true,
+        dataType: "number",
+      },
+    ]
+  );
+
+  return columns;
+};

@@ -71,13 +71,14 @@ interface IndicesState {
   selectedItems: ManagedCatIndex[];
   indices: ManagedCatIndex[];
   loadingIndices: boolean;
+  showDataStreams: boolean;
 }
 
 export default class Indices extends Component<IndicesProps, IndicesState> {
   static contextType = CoreServicesContext;
   constructor(props: IndicesProps) {
     super(props);
-    const { from, size, search, sortField, sortDirection } = getURLQueryParams(this.props.location);
+    const { from, size, search, sortField, sortDirection, showDataStreams } = getURLQueryParams(this.props.location);
     this.state = {
       totalIndices: 0,
       from,
@@ -89,6 +90,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       selectedItems: [],
       indices: [],
       loadingIndices: true,
+      showDataStreams,
     };
 
     this.getIndices = _.debounce(this.getIndices, 500, { leading: true });
@@ -107,8 +109,8 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
     }
   }
 
-  static getQueryObjectFromState({ from, size, search, sortField, sortDirection }: IndicesState): IndicesQueryParams {
-    return { from, size, search, sortField, sortDirection };
+  static getQueryObjectFromState({ from, size, search, sortField, sortDirection, showDataStreams }: IndicesState): IndicesQueryParams {
+    return { from, size, search, sortField, sortDirection, showDataStreams };
   }
 
   getIndices = async (): Promise<void> => {
@@ -143,6 +145,11 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
     const serverResponse = await indexService.getDataStreams();
     const { dataStreams } = serverResponse.response;
     return dataStreams;
+  };
+
+  toggleShowDataStreams = () => {
+    const { showDataStreams } = this.state;
+    this.setState({ showDataStreams: !showDataStreams });
   };
 
   getFieldClausesFromState = (clause: string): string[] => {
@@ -183,7 +190,18 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
   };
 
   render() {
-    const { totalIndices, from, size, search, sortField, sortDirection, selectedItems, indices, loadingIndices } = this.state;
+    const {
+      totalIndices,
+      from,
+      size,
+      search,
+      sortField,
+      sortDirection,
+      selectedItems,
+      indices,
+      loadingIndices,
+      showDataStreams,
+    } = this.state;
 
     const filterIsApplied = !!search;
     const page = Math.floor(from / size);
@@ -239,12 +257,14 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
           onPageClick={this.onPageClick}
           onRefresh={this.getIndices}
           getDataStreams={this.getDataStreams}
+          showDataStreams={showDataStreams}
+          toggleShowDataStreams={this.toggleShowDataStreams}
         />
 
         <EuiHorizontalRule margin="xs" />
 
         <EuiBasicTable
-          columns={indicesColumns}
+          columns={indicesColumns(showDataStreams)}
           isSelectable={true}
           itemId="index"
           items={indices}

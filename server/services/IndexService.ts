@@ -59,7 +59,7 @@ export default class IndexService {
   ): Promise<IOpenSearchDashboardsResponse<ServerResponse<GetIndicesResponse>>> => {
     try {
       // @ts-ignore
-      const { from, size, sortField, sortDirection, terms, indices, dataStreams } = request.query as {
+      const { from, size, sortField, sortDirection, terms, indices, dataStreams, showDataStreams } = request.query as {
         from: string;
         size: string;
         sortField: string;
@@ -67,6 +67,7 @@ export default class IndexService {
         terms?: string[];
         indices?: string[];
         dataStreams?: string[];
+        showDataStreams: boolean;
       };
 
       // Terms are searched with a wildcard around them.
@@ -87,18 +88,27 @@ export default class IndexService {
         expand_wildcards: "all",
       };
       const { callAsCurrentUser: callWithRequest } = this.osDriver.asScoped(request);
-      const indicesResponse: CatIndex[] = await callWithRequest("cat.indices", params);
+
+      const [indicesResponse, indexToDataStreamMapping]: [indicesResponse: CatIndex[]] = await Promise.all([
+        callWithRequest("cat.indices", params),
+        getIndexToDataStreamMapping({ callAsCurrentUser: callWithRequest }),
+      ]);
+
+      // Augment the index with the parent data stream name.
+      indicesResponse.forEach((index) => {
+        index.data_stream = indexToDataStreamMapping[index.index] || null;
+      });
+
+      // Filtering out indices that belong to a data stream. This must be done before pagination.
+      const filteredIndices = showDataStreams ? indicesResponse : indicesResponse.filter((index) => index.data_stream === null);
 
       // _cat doesn't support pagination, do our own in server pagination to at least reduce network bandwidth
       const fromNumber = parseInt(from, 10);
       const sizeNumber = parseInt(size, 10);
-      const paginatedIndices = indicesResponse.slice(fromNumber, fromNumber + sizeNumber);
+      const paginatedIndices = filteredIndices.slice(fromNumber, fromNumber + sizeNumber);
       const indexNames = paginatedIndices.map((value: CatIndex) => value.index);
 
-      const [managedStatus, indexToDataStreamMapping] = await Promise.all([
-        this._getManagedStatus(request, indexNames),
-        getIndexToDataStreamMapping({ callAsCurrentUser: callWithRequest }),
-      ]);
+      const managedStatus = await this._getManagedStatus(request, indexNames);
 
       // NOTE: Cannot use response.ok due to typescript type checking
       return response.custom({
@@ -109,9 +119,8 @@ export default class IndexService {
             indices: paginatedIndices.map((catIndex: CatIndex) => ({
               ...catIndex,
               managed: managedStatus[catIndex.index] || "N/A",
-              data_stream: indexToDataStreamMapping[catIndex.index] || null,
             })),
-            totalIndices: indicesResponse.length,
+            totalIndices: filteredIndices.length,
           },
         },
       });
