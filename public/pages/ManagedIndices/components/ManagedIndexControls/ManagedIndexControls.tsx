@@ -95,7 +95,7 @@ export default class ManagedIndexControls extends Component<ManagedIndexControls
           />
         </EuiFlexItem>
         <EuiFlexItem grow={false}>
-          <EuiSwitch label="Show Data Streams" checked={showDataStreams} onChange={toggleShowDataStreams} />
+          <EuiSwitch label="Show Data Stream Indices" checked={showDataStreams} onChange={toggleShowDataStreams} />
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ maxWidth: 250 }}>
           <EuiRefreshPicker

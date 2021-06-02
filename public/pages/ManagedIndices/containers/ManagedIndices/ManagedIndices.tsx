@@ -83,6 +83,7 @@ interface ManagedIndicesState {
   managedIndices: ManagedIndexItem[];
   loadingManagedIndices: boolean;
   showDataStreams: boolean;
+  isDataStreamColumnShown: boolean;
 }
 
 export default class ManagedIndices extends Component<ManagedIndicesProps, ManagedIndicesState> {
@@ -105,13 +106,14 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       managedIndices: [],
       loadingManagedIndices: true,
       showDataStreams: showDataStreams,
+      isDataStreamColumnShown: showDataStreams,
     };
 
     this.getManagedIndices = _.debounce(this.getManagedIndices, 500, { leading: true });
   }
 
   managedIndicesColumns = (): EuiTableFieldDataColumnType<ManagedIndexItem>[] => {
-    const { showDataStreams } = this.state;
+    const { isDataStreamColumnShown } = this.state;
     const columns = [];
 
     columns.push({
@@ -124,7 +126,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       render: (index: string) => <span title={index}>{index}</span>,
     });
 
-    if (showDataStreams) {
+    if (isDataStreamColumnShown) {
       columns.push({
         field: "dataStream",
         name: "Data Stream",
@@ -270,7 +272,10 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
     } catch (err) {
       this.context.notifications.toasts.addDanger(getErrorMessage(err, "There was a problem loading the managed indices"));
     }
-    this.setState({ loadingManagedIndices: false });
+
+    // Avoiding flicker by showing/hiding the "Data Stream" column only after the results are loaded.
+    const { showDataStreams } = this.state;
+    this.setState({ loadingManagedIndices: false, isDataStreamColumnShown: showDataStreams });
   };
 
   getDataStreams = async (): Promise<DataStream[]> => {
@@ -473,7 +478,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
           <EuiHorizontalRule margin="xs" />
 
           <EuiBasicTable
-            columns={this.managedIndicesColumns(showDataStreams)}
+            columns={this.managedIndicesColumns()}
             isSelectable={true}
             itemId="index"
             items={managedIndices}

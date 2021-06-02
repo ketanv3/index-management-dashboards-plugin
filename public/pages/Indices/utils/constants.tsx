@@ -51,7 +51,7 @@ const HEALTH_TO_COLOR: {
   red: "danger",
 };
 
-export const indicesColumns = (showDataStreams: boolean): EuiTableFieldDataColumnType<ManagedCatIndex>[] => {
+export const indicesColumns = (isDataStreamColumnShown: boolean): EuiTableFieldDataColumnType<ManagedCatIndex>[] => {
   const columns = [];
 
   columns.push(
@@ -92,7 +92,7 @@ export const indicesColumns = (showDataStreams: boolean): EuiTableFieldDataColum
     ]
   );
 
-  if (showDataStreams) {
+  if (isDataStreamColumnShown) {
     columns.push({
       field: "data_stream",
       name: "Data Stream",

@@ -72,6 +72,7 @@ interface IndicesState {
   indices: ManagedCatIndex[];
   loadingIndices: boolean;
   showDataStreams: boolean;
+  isDataStreamColumnShown: boolean;
 }
 
 export default class Indices extends Component<IndicesProps, IndicesState> {
@@ -91,6 +92,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       indices: [],
       loadingIndices: true,
       showDataStreams,
+      isDataStreamColumnShown: showDataStreams,
     };
 
     this.getIndices = _.debounce(this.getIndices, 500, { leading: true });
@@ -137,7 +139,10 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
     } catch (err) {
       this.context.notifications.toasts.addDanger(getErrorMessage(err, "There was a problem loading the indices"));
     }
-    this.setState({ loadingIndices: false });
+
+    // Avoiding flicker by showing/hiding the "Data Stream" column only after the results are loaded.
+    const { showDataStreams } = this.state;
+    this.setState({ loadingIndices: false, isDataStreamColumnShown: showDataStreams });
   };
 
   getDataStreams = async (): Promise<DataStream[]> => {
@@ -201,6 +206,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
       indices,
       loadingIndices,
       showDataStreams,
+      isDataStreamColumnShown,
     } = this.state;
 
     const filterIsApplied = !!search;
@@ -264,7 +270,7 @@ export default class Indices extends Component<IndicesProps, IndicesState> {
         <EuiHorizontalRule margin="xs" />
 
         <EuiBasicTable
-          columns={indicesColumns(showDataStreams)}
+          columns={indicesColumns(isDataStreamColumnShown)}
           isSelectable={true}
           itemId="index"
           items={indices}
