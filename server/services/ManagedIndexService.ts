@@ -94,7 +94,7 @@ export default class ManagedIndexService {
     response: OpenSearchDashboardsResponseFactory
   ): Promise<IOpenSearchDashboardsResponse<ServerResponse<GetManagedIndicesResponse>>> => {
     try {
-      const { from, size, sortDirection, sortField, terms, indices, dataStreams } = request.query as {
+      const { from, size, sortDirection, sortField, terms, indices, dataStreams, showDataStreams } = request.query as {
         from: string;
         size: string;
         sortDirection: string;
@@ -102,13 +102,12 @@ export default class ManagedIndexService {
         terms?: string[];
         indices?: string[];
         dataStreams?: string[];
+        showDataStreams: boolean;
       };
 
       const searchString = getSearchString(terms, indices, dataStreams);
       const managedIndexSorts: ManagedIndicesSort = { index: "managed_index.index", policyId: "managed_index.policy_id" };
       const explainParams = {
-        size,
-        from,
         sortField: sortField ? managedIndexSorts[sortField] : null,
         sortOrder: sortDirection,
         queryString: searchString,
@@ -121,10 +120,23 @@ export default class ManagedIndexService {
         getIndexToDataStreamMapping(client),
       ]);
 
+      let totalCount = 0;
       const managedIndices: ManagedIndexItem[] = [];
+
       for (const indexName in explainAllResponse) {
         if (indexName == "total_managed_indices") continue;
         const metadata = explainAllResponse[indexName] as ExplainAPIManagedIndexMetaData;
+
+        // If showDataStreams is not true, then skip the managed index if it belongs to a data stream.
+        const parentDataStream = indexToDataStreamMapping[metadata.index] || null;
+        if (!showDataStreams && parentDataStream !== null) continue;
+
+        // Total count is the number of indices after being filtered.
+        totalCount++;
+
+        // Using the running totalCount, check if we are in the correct page.
+        if (totalCount <= from || totalCount > from + size) continue;
+
         let policy, seqNo, primaryTerm, getResponse;
         try {
           getResponse = await callWithRequest("ism.getPolicy", { policyId: metadata.policy_id });
@@ -141,7 +153,7 @@ export default class ManagedIndexService {
         managedIndices.push({
           index: metadata.index,
           indexUuid: metadata.index_uuid,
-          dataStream: indexToDataStreamMapping[metadata.index] || null,
+          dataStream: parentDataStream,
           policyId: metadata.policy_id,
           policySeqNo: seqNo,
           policyPrimaryTerm: primaryTerm,
@@ -151,13 +163,11 @@ export default class ManagedIndexService {
         });
       }
 
-      const totalManagedIndices: number = explainAllResponse.total_managed_indices;
-
       return response.custom({
         statusCode: 200,
         body: {
           ok: true,
-          response: { managedIndices: managedIndices, totalManagedIndices: totalManagedIndices },
+          response: { managedIndices: managedIndices, totalManagedIndices: totalCount },
         },
       });
     } catch (err) {

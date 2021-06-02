@@ -82,16 +82,16 @@ interface ManagedIndicesState {
   selectedItems: ManagedIndexItem[];
   managedIndices: ManagedIndexItem[];
   loadingManagedIndices: boolean;
+  showDataStreams: boolean;
 }
 
 export default class ManagedIndices extends Component<ManagedIndicesProps, ManagedIndicesState> {
   static contextType = CoreServicesContext;
-  columns: EuiTableFieldDataColumnType<ManagedIndexItem>[];
 
   constructor(props: ManagedIndicesProps) {
     super(props);
 
-    const { from, size, search, sortField, sortDirection } = getURLQueryParams(this.props.location);
+    const { from, size, search, sortField, sortDirection, showDataStreams } = getURLQueryParams(this.props.location);
 
     this.state = {
       totalManagedIndices: 0,
@@ -104,21 +104,28 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       selectedItems: [],
       managedIndices: [],
       loadingManagedIndices: true,
+      showDataStreams: showDataStreams,
     };
 
     this.getManagedIndices = _.debounce(this.getManagedIndices, 500, { leading: true });
+  }
 
-    this.columns = [
-      {
-        field: "index",
-        name: "Index",
-        sortable: true,
-        truncateText: true,
-        textOnly: true,
-        width: "150px",
-        render: (index: string) => <span title={index}>{index}</span>,
-      },
-      {
+  managedIndicesColumns = (): EuiTableFieldDataColumnType<ManagedIndexItem>[] => {
+    const { showDataStreams } = this.state;
+    const columns = [];
+
+    columns.push({
+      field: "index",
+      name: "Index",
+      sortable: true,
+      truncateText: true,
+      textOnly: true,
+      width: "150px",
+      render: (index: string) => <span title={index}>{index}</span>,
+    });
+
+    if (showDataStreams) {
+      columns.push({
         field: "dataStream",
         name: "Data Stream",
         sortable: true,
@@ -126,67 +133,74 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
         textOnly: true,
         width: "120px",
         render: (dataStream) => dataStream || "–",
-      },
-      {
-        field: "policyId",
-        name: "Policy",
-        sortable: true,
-        truncateText: true,
-        textOnly: true,
-        width: "150px",
-        render: this.renderPolicyId,
-      },
-      {
-        field: "managedIndexMetaData.state.name",
-        name: "State",
-        sortable: false,
-        truncateText: false,
-        width: "150px",
-        // @ts-ignore
-        render: (state: string) => state || DEFAULT_EMPTY_DATA,
-      },
-      {
-        field: "managedIndexMetaData.action.name",
-        name: "Action",
-        sortable: false,
-        truncateText: false,
-        width: "150px",
-        // @ts-ignore
-        render: (action: string) => (
-          <span style={{ textTransform: "capitalize" }}>{(action || DEFAULT_EMPTY_DATA).split("_").join(" ")}</span>
-        ),
-      },
-      {
-        field: "managedIndexMetaData.info",
-        name: "Info",
-        sortable: false,
-        truncateText: true,
-        textOnly: true,
-        width: "150px",
-        render: (info: object) => (
-          <ModalConsumer>
-            {({ onShow }) => <EuiLink onClick={() => onShow(InfoModal, { info })}>{_.get(info, "message", DEFAULT_EMPTY_DATA)}</EuiLink>}
-          </ModalConsumer>
-        ),
-      },
-      {
-        field: "index", // we don't care about the field as we're using the whole item in render
-        name: "Job Status",
-        sortable: false,
-        truncateText: false,
-        width: "150px",
-        render: (index: string, item: ManagedIndexItem) => {
-          const { managedIndexMetaData } = item;
-          if (!managedIndexMetaData) return "Initializing";
-          const { policyCompleted, retryInfo, action } = managedIndexMetaData;
-          if (policyCompleted) return "Completed";
-          if (retryInfo && retryInfo.failed) return "Failed";
-          if (action && action.failed) return "Failed";
-          return "Running";
+      });
+    }
+
+    columns.push(
+      ...[
+        {
+          field: "policyId",
+          name: "Policy",
+          sortable: true,
+          truncateText: true,
+          textOnly: true,
+          width: "150px",
+          render: this.renderPolicyId,
         },
-      },
-    ];
-  }
+        {
+          field: "managedIndexMetaData.state.name",
+          name: "State",
+          sortable: false,
+          truncateText: false,
+          width: "150px",
+          // @ts-ignore
+          render: (state: string) => state || DEFAULT_EMPTY_DATA,
+        },
+        {
+          field: "managedIndexMetaData.action.name",
+          name: "Action",
+          sortable: false,
+          truncateText: false,
+          width: "150px",
+          // @ts-ignore
+          render: (action: string) => (
+            <span style={{ textTransform: "capitalize" }}>{(action || DEFAULT_EMPTY_DATA).split("_").join(" ")}</span>
+          ),
+        },
+        {
+          field: "managedIndexMetaData.info",
+          name: "Info",
+          sortable: false,
+          truncateText: true,
+          textOnly: true,
+          width: "150px",
+          render: (info: object) => (
+            <ModalConsumer>
+              {({ onShow }) => <EuiLink onClick={() => onShow(InfoModal, { info })}>{_.get(info, "message", DEFAULT_EMPTY_DATA)}</EuiLink>}
+            </ModalConsumer>
+          ),
+        },
+        {
+          field: "index", // we don't care about the field as we're using the whole item in render
+          name: "Job Status",
+          sortable: false,
+          truncateText: false,
+          width: "150px",
+          render: (index: string, item: ManagedIndexItem) => {
+            const { managedIndexMetaData } = item;
+            if (!managedIndexMetaData) return "Initializing";
+            const { policyCompleted, retryInfo, action } = managedIndexMetaData;
+            if (policyCompleted) return "Completed";
+            if (retryInfo && retryInfo.failed) return "Failed";
+            if (action && action.failed) return "Failed";
+            return "Running";
+          },
+        },
+      ]
+    );
+
+    return columns;
+  };
 
   async componentDidMount() {
     this.context.chrome.setBreadcrumbs([BREADCRUMBS.INDEX_MANAGEMENT, BREADCRUMBS.MANAGED_INDICES]);
@@ -201,8 +215,8 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
     }
   }
 
-  static getQueryObjectFromState({ from, size, search, sortField, sortDirection }: ManagedIndicesState) {
-    return { from, size, search, sortField, sortDirection };
+  static getQueryObjectFromState({ from, size, search, sortField, sortDirection, showDataStreams }: ManagedIndicesState) {
+    return { from, size, search, sortField, sortDirection, showDataStreams };
   }
 
   renderPolicyId = (policyId: string, item: ManagedIndexItem) => {
@@ -264,6 +278,11 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
     const serverResponse = await managedIndexService.getDataStreams();
     const { dataStreams } = serverResponse.response;
     return dataStreams;
+  };
+
+  toggleShowDataStreams = (): void => {
+    const { showDataStreams } = this.state;
+    this.setState({ showDataStreams: !showDataStreams });
   };
 
   getFieldClausesFromState = (clause: string): string[] => {
@@ -345,6 +364,7 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
       selectedItems,
       managedIndices,
       loadingManagedIndices,
+      showDataStreams,
     } = this.state;
 
     const filterIsApplied = !!search;
@@ -446,12 +466,14 @@ export default class ManagedIndices extends Component<ManagedIndicesProps, Manag
             onPageClick={this.onPageClick}
             onRefresh={this.getManagedIndices}
             getDataStreams={this.getDataStreams}
+            showDataStreams={showDataStreams}
+            toggleShowDataStreams={this.toggleShowDataStreams}
           />
 
           <EuiHorizontalRule margin="xs" />
 
           <EuiBasicTable
-            columns={this.columns}
+            columns={this.managedIndicesColumns(showDataStreams)}
             isSelectable={true}
             itemId="index"
             items={managedIndices}

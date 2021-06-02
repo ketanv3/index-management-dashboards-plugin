@@ -25,7 +25,7 @@
  */
 
 import React, { ChangeEvent, Component } from "react";
-import { EuiSearchBar, EuiFlexGroup, EuiFlexItem, EuiPagination, ArgsWithQuery, ArgsWithError } from "@elastic/eui";
+import { EuiSearchBar, EuiFlexGroup, EuiFlexItem, EuiPagination, ArgsWithQuery, ArgsWithError, EuiSwitch } from "@elastic/eui";
 import EuiRefreshPicker from "../../../../temporary/EuiRefreshPicker";
 import { DataStream } from "../../../../../server/models/interfaces";
 
@@ -33,10 +33,12 @@ interface ManagedIndexControlsProps {
   activePage: number;
   pageCount: number;
   search: string;
+  showDataStreams: boolean;
   onSearchChange: (args: ArgsWithQuery | ArgsWithError) => void;
   onPageClick: (page: number) => void;
   onRefresh: () => void;
   getDataStreams: () => Promise<DataStream[]>;
+  toggleShowDataStreams: () => void;
 }
 
 export default class ManagedIndexControls extends Component<ManagedIndexControlsProps, object> {
@@ -54,7 +56,7 @@ export default class ManagedIndexControls extends Component<ManagedIndexControls
   };
 
   render() {
-    const { activePage, pageCount, search, onSearchChange, onPageClick, onRefresh } = this.props;
+    const { activePage, pageCount, search, onSearchChange, onPageClick, onRefresh, showDataStreams, toggleShowDataStreams } = this.props;
     const { refreshInterval, isPaused } = this.state;
 
     const schema = {
@@ -69,19 +71,21 @@ export default class ManagedIndexControls extends Component<ManagedIndexControls
       },
     };
 
-    const filters = [
-      {
-        type: "field_value_selection",
-        field: "data_streams",
-        name: "Data Streams",
-        multiSelect: false,
-        cache: 60000,
-        options: () => this.lazyLoadDataStreams(),
-      },
-    ];
+    const filters = showDataStreams
+      ? [
+          {
+            type: "field_value_selection",
+            field: "data_streams",
+            name: "Data Streams",
+            multiSelect: false,
+            cache: 60000,
+            options: () => this.lazyLoadDataStreams(),
+          },
+        ]
+      : [];
 
     return (
-      <EuiFlexGroup style={{ padding: "0px 5px" }}>
+      <EuiFlexGroup style={{ padding: "0px 5px" }} alignItems="center">
         <EuiFlexItem>
           <EuiSearchBar
             query={search}
@@ -89,6 +93,9 @@ export default class ManagedIndexControls extends Component<ManagedIndexControls
             onChange={onSearchChange}
             filters={filters}
           />
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiSwitch label="Show Data Streams" checked={showDataStreams} onChange={toggleShowDataStreams} />
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ maxWidth: 250 }}>
           <EuiRefreshPicker
