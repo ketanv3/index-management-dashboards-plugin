@@ -30,12 +30,9 @@ import EuiRefreshPicker from "../../../../temporary/EuiRefreshPicker";
 import { DataStream } from "../../../../../server/models/interfaces";
 
 interface IndexControlsProps {
-  activePage: number;
-  pageCount: number;
   search: string;
   showDataStreams: boolean;
   onSearchChange: (args: ArgsWithQuery | ArgsWithError) => void;
-  onPageClick: (page: number) => void;
   onRefresh: () => Promise<void>;
   getDataStreams: () => Promise<DataStream[]>;
   toggleShowDataStreams: () => void;
@@ -61,7 +58,7 @@ export default class IndexControls extends Component<IndexControlsProps, IndexCo
   };
 
   render() {
-    const { activePage, pageCount, search, onSearchChange, onPageClick, onRefresh, showDataStreams, toggleShowDataStreams } = this.props;
+    const { search, onSearchChange, onRefresh, showDataStreams, toggleShowDataStreams } = this.props;
     const { refreshInterval, isPaused } = this.state;
 
     const schema = {
@@ -82,12 +79,13 @@ export default class IndexControls extends Component<IndexControlsProps, IndexCo
             type: "field_value_selection",
             field: "data_streams",
             name: "Data Streams",
+            noOptionsMessage: "No data streams found",
             multiSelect: "or",
             cache: 60000,
             options: () => this.lazyLoadDataStreams(),
           },
         ]
-      : [];
+      : undefined;
 
     return (
       <EuiFlexGroup style={{ padding: "0px 5px" }} alignItems="center">
@@ -110,16 +108,6 @@ export default class IndexControls extends Component<IndexControlsProps, IndexCo
             onRefresh={onRefresh}
           />
         </EuiFlexItem>
-        {pageCount > 1 && (
-          <EuiFlexItem grow={false} style={{ justifyContent: "center" }}>
-            <EuiPagination
-              pageCount={pageCount}
-              activePage={activePage}
-              onPageClick={onPageClick}
-              data-test-subj="indexControlsPagination"
-            />
-          </EuiFlexItem>
-        )}
       </EuiFlexGroup>
     );
   }
